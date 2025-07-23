@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Transfer</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 1rem; }
+    input, select, button { margin: 0.5rem 0; display: block; width: 100%; padding: 0.5rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    .flex { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .half { flex: 1 1 45%; }
+  </style>
+</head>
+<body>
+  <h1>Controle Transfer</h1>
+
+  <div class="flex">
+    <div class="half">
+      <label>Prefixo:</label>
+      <input type="text" id="prefixo">
+      <label>Motorista:</label>
+      <input type="text" id="motorista">
+      <label>Entrada/Saída:</label>
+      <select id="entrada_saida">
+        <option value="E">Entrada</option>
+        <option value="S">Saída</option>
+      </select>
+      <label>Hora:</label>
+      <input type="time" id="hora">
+      <label>Observações:</label>
+      <input type="text" id="observacoes">
+      <button onclick="salvarRegistro()">Salvar Registro</button>
+    </div>
+
+    <div class="half">
+      <label>Pesquisar por Prefixo:</label>
+      <input type="text" id="buscaPrefixo" oninput="filtrarTabela()">
+    </div>
+  </div>
+
+  <table id="tabelaRegistros">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Prefixo</th>
+        <th>Motorista</th>
+        <th>Entrada/Saída</th>
+        <th>Hora</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let registros = JSON.parse(localStorage.getItem("registros")) || [];
+    const hoje = new Date().toISOString().split("T")[0];
+
+    function salvarRegistro() {
+      const registro = {
+        data: hoje,
+        prefixo: document.getElementById("prefixo").value,
+        motorista: document.getElementById("motorista").value,
+        tipo: document.getElementById("entrada_saida").value,
+        hora: document.getElementById("hora").value,
+        obs: document.getElementById("observacoes").value
+      };
+
+      registros.push(registro);
+      localStorage.setItem("registros", JSON.stringify(registros));
+      atualizarTabela();
+    }
+
+    function atualizarTabela() {
+      const tbody = document.querySelector("#tabelaRegistros tbody");
+      tbody.innerHTML = "";
+      const filtrados = registros.filter(r => r.data === hoje);
+      filtrados.forEach(reg => {
+        const row = `<tr>
+          <td>${reg.data}</td>
+          <td>${reg.prefixo}</td>
+          <td>${reg.motorista}</td>
+          <td>${reg.tipo}</td>
+          <td>${reg.hora}</td>
+          <td>${reg.obs}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    function filtrarTabela() {
+      const busca = document.getElementById("buscaPrefixo").value.trim();
+      const tbody = document.querySelector("#tabelaRegistros tbody");
+      tbody.innerHTML = "";
+      const filtrados = registros.filter(r => r.data === hoje && r.prefixo.includes(busca));
+      filtrados.forEach(reg => {
+        const row = `<tr>
+          <td>${reg.data}</td>
+          <td>${reg.prefixo}</td>
+          <td>${reg.motorista}</td>
+          <td>${reg.tipo}</td>
+          <td>${reg.hora}</td>
+          <td>${reg.obs}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    atualizarTabela();
+  </script>
+</body>
+</html>
