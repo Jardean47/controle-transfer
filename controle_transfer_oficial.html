@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Controle de Ônibus</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+    h1 { color: #333; }
+    label { display: block; margin-top: 10px; }
+    input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px 20px; }
+    table { margin-top: 20px; width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #eee; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Controle de Entrada/Saída de Ônibus</h1>
+  <form id="busForm">
+    <input type="text" id="dataRegistro" name="dataRegistro" class="hidden" />
+
+    <label for="prefixo">Prefixo:</label>
+    <input type="text" id="prefixo" name="prefixo" required />
+
+    <label for="motorista">Motorista:</label>
+    <input type="text" id="motorista" name="motorista" required />
+
+    <label for="entradaSaida">Entrada/Saída:</label>
+    <select id="entradaSaida" name="entradaSaida" required>
+      <option value="">Selecione</option>
+      <option value="Entrada">Entrada</option>
+      <option value="Saída">Saída</option>
+    </select>
+
+    <label for="hora">Hora:</label>
+    <input type="time" id="hora" name="hora" required />
+
+    <label for="obs">Observações:</label>
+    <textarea id="obs" name="obs" rows="2"></textarea>
+
+    <button type="submit">Salvar</button>
+  </form>
+
+  <label for="busca">Pesquisar por Prefixo:</label>
+  <input type="text" id="busca" placeholder="Digite para buscar..." />
+
+  <button onclick="exportarCSV()">Exportar para CSV</button>
+  <table id="tabela">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Prefixo</th>
+        <th>Motorista</th>
+        <th>Entrada/Saída</th>
+        <th>Hora</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById('busForm');
+    const tabela = document.getElementById('tabela').querySelector('tbody');
+    const busca = document.getElementById('busca');
+    const dataHoje = new Date().toISOString().split('T')[0];
+    document.getElementById('dataRegistro').value = dataHoje;
+
+    let registrosPorData = JSON.parse(localStorage.getItem("registrosPorData")) || {};
+    if (!registrosPorData[dataHoje]) registrosPorData[dataHoje] = [];
+
+    const apiUrl = "https://script.google.com/macros/s/AKfycbxPRtrADQmzSCzDoYbRxKN1RWNyi_PaonjFqjbOwSAPeUMwGysI6lTiN_3vS_gMZ0j7/exec";
+
+    function salvarLocalStorage() {
+      localStorage.setItem("registrosPorData", JSON.stringify(registrosPorData));
+    }
+
+    function atualizarTabela(filtrados = null) {
+      tabela.innerHTML = "";
+      const lista = filtrados || registrosPorData[dataHoje];
+      lista.forEach(d => {
+        const linha = document.createElement('tr');
+        [d.data, d.prefixo, d.motorista, d.entradaSaida, d.hora, d.obs].forEach(texto => {
+          const td = document.createElement('td');
+          td.textContent = texto;
+          linha.appendChild(td);
+        });
+        tabela.appendChild(linha);
+      });
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const data = form.dataRegistro.value;
+      const prefixo = form.prefixo.value.trim();
+      const motorista = form.motorista.value.trim();
+      const entradaSaida = form.entradaSaida.value;
+      const hora = form.hora.value;
+      const obs = form.obs.value.trim();
+
+      if (!prefixo || !motorista || !entradaSaida || !hora) {
+        alert("Preencha todos os campos obrigatórios!");
+        return;
+      }
+
+      const registro = { data, prefixo, motorista, entradaSaida, hora, obs };
+      registrosPorData[dataHoje].push(registro);
+      salvarLocalStorage();
+      atualizarTabela();
+      form.reset();
+      document.getElementById('dataRegistro').value = dataHoje;
+
+      fetch(apiUrl, {
+        method: "POST",
+        body: JSON.stringify(registro),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(response => response.text())
+      .then(data => console.log("Enviado para Google Sheets:", data))
+      .catch(error => console.error("Erro ao enviar para planilha:", error));
+    });
+
+    busca.addEventListener("input", function() {
+      const termo = busca.value.trim().toLowerCase();
+      if (!termo) {
+        atualizarTabela();
+      } else {
+        const filtrados = registrosPorData[dataHoje].filter(r => r.prefixo.toLowerCase().includes(termo));
+        atualizarTabela(filtrados);
+      }
+    });
+
+    function exportarCSV() {
+      let csv = "Data,Prefixo,Motorista,Entrada/Saída,Hora,Observações\n";
+      registrosPorData[dataHoje].forEach(d => {
+        csv += `"${d.data}","${d.prefixo}","${d.motorista}","${d.entradaSaida}","${d.hora}","${d.obs}"\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.setAttribute("href", url);
+      a.setAttribute("download", `controle_onibus_${dataHoje}.csv`);
+      a.click();
+    }
+
+    atualizarTabela();
+  </script>
+</body>
+</html>
